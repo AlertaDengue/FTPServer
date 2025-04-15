@@ -1,0 +1,32 @@
+services:
+  ftp:
+    hostname: ftpserver
+    restart: always
+    build:
+      context: ..
+      dockerfile: ftpserver/Dockerfile
+      args:
+        - UID=${HOST_UID:-1000}
+        - GID=${HOST_GID:-1000}
+    env_file:
+      - ../.env
+    environment:
+      PASV_MIN_PORT: 21100
+      PASV_MAX_PORT: 21110
+      ALLOW_ANONYMOUS: yes
+      PASV_ADDRESS: 172.17.0.1
+    user: "1000:1000"
+    volumes:
+      - ./vsftp.conf:/etc/vsftpd/vsftpd.conf:z
+      - ${DATA_ROOT}:/opt/services/ftp/data
+    ports:
+      - 20:20
+      - 21:21
+      - 21100-21110:21100-21110
+    command: vsftpd /etc/vsftpd/vsftpd.conf -olisten=NO
+      # healthcheck:
+      #   test: ["CMD", "curl", "-f", "http://0.0.0.0:${DJANGO_PORT}/status"]
+      #   interval: 60s
+      #   timeout: 10s
+      #   retries: 5
+      #   start_period: 40s
