@@ -6,24 +6,23 @@ services:
       context: ..
       dockerfile: ftpserver/Dockerfile
       args:
+        - FTP_USER_PASS=${FTP_PASS}
         - UID=${HOST_UID:-1000}
         - GID=${HOST_GID:-1000}
     env_file:
       - ../.env
     environment:
-      PASV_MIN_PORT: 21100
-      PASV_MAX_PORT: 21110
-      ALLOW_ANONYMOUS: yes
-      PASV_ADDRESS: 172.17.0.1
+      PUBLICHOST: "localhost"
+      FTP_USER_NAME: ftpuser
+      FTP_USER_HOME: /home/ftpuser
+      # ADDED_FLAGS: "--tls"
     user: "1000:1000"
     volumes:
-      - ./vsftp.conf:/etc/vsftpd/vsftpd.conf:z
-      - ${DATA_ROOT}:/opt/services/ftp/data
+      - ${PROJECT_ROOT}/data:/home/ftpuser/
+      - ${PROJECT_ROOT}/passwd:/etc/pure-ftpd/passwd
     ports:
-      - 20:20
-      - 21:21
-      - 21100-21110:21100-21110
-    command: vsftpd /etc/vsftpd/vsftpd.conf -olisten=NO
+      - "21:21"
+      - "30000-30009:30000-30009"
       # healthcheck:
       #   test: ["CMD", "curl", "-f", "http://0.0.0.0:${DJANGO_PORT}/status"]
       #   interval: 60s
