@@ -8,8 +8,8 @@ __pycache__/
 node_modules/
 .git
 .gitignore
-.gitkeep
+**/.gitkeep
 Dockerfile
-docker-compose.yml
+compose*.yaml
 *.log
 
