@@ -1,0 +1,26 @@
+compose-app: docker-compose
+env-file: .env
+defaults:
+  group: {{ env.ENV }}
+groups:
+  prod:
+    project-name: ftpserver
+    compose-path:
+      - ftpserver/compose.yaml
+      - ftpserver/compose-prod.yaml
+    env-file: .env
+    services:
+      default: ftp
+      available:
+        - name: ftp
+
+  dev:
+    project-name: ftpserver
+    compose-path:
+      - ftpserver/compose.yaml
+      - ftpserver/compose-dev.yaml
+    env-file: .env
+    services:
+      default: ftp
+      available:
+        - name: ftp

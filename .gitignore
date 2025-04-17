@@ -172,3 +172,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+data/*
+!data/guest/
+data/guest/*
+!data/.gitkeep
+!data/guest/.gitkeep

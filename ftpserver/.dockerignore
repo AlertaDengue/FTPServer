@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+.env
+.env.*
+node_modules/
+.git
+.gitignore
+**/.gitkeep
+Dockerfile
+compose*.yaml
+*.log
+
