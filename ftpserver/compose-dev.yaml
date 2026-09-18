@@ -1,8 +1,0 @@
-services:
-  ftp:
-    networks:
-      - infodengue-dev_infodengue
-
-networks:
-  infodengue-dev_infodengue:
-    external: true

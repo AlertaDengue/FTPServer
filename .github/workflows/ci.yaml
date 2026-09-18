@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  INFODENGUE_NETWORK_NAME: infodengue-ci
+
+jobs:
+  prod-stack:
+    name: Build & up (prod)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare prod data directory
+        run: |
+          sudo mkdir -p /opt/services/FTPServer/data/guest
+          sudo chown -R 1000:1000 /opt/services/FTPServer/data
+
+      - name: Create external Docker network
+        run: docker network create "$INFODENGUE_NETWORK_NAME" || true
+
+      - name: Build image
+        run: docker compose -f docker-compose.yaml build
+
+      - name: Bring stack up
+        env:
+          FTP_PASS: ci-secret
+        run: docker compose -f docker-compose.yaml up -d --remove-orphans
+
+      - name: Wait for healthy container
+        run: |
+          for i in $(seq 1 90); do
+            cid=$(docker compose -f docker-compose.yaml ps -q ftp 2>/dev/null || true)
+            status="created"
+            [ -n "$cid" ] && status=$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo starting)
+            echo "[$i] healthcheck: $status"
+            [ "$status" = "healthy" ] && exit 0
+            [ "$status" = "unhealthy" ] && break
+            sleep 2
+          done
+          echo "::group::compose ps"
+          docker compose -f docker-compose.yaml ps
+          echo "::endgroup::"
+          echo "::group::compose logs"
+          docker compose -f docker-compose.yaml logs
+          echo "::endgroup::"
+          exit 1
+
+      - name: Smoke test FTP login
+        env:
+          FTP_PASS: ci-secret
+        run: |
+          python - <<'PYEOF'
+          import os
+          import time
+          from ftplib import FTP
+
+          for _ in range(60):
+              try:
+                  conn = FTP()
+                  conn.connect("localhost", 21, timeout=5)
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("could not reach FTP on localhost:21")
+
+          conn.login("infodengue", os.environ["FTP_PASS"])
+          print("user login OK, banner:", conn.getwelcome())
+          conn.quit()
+
+          anon = FTP()
+          anon.connect("localhost", 21, timeout=5)
+          anon.login()
+          print("anonymous login OK")
+          anon.quit()
+          PYEOF
+
+  dev-stack:
+    name: make up / make down (dev)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create external Docker network
+        run: docker network create "$INFODENGUE_NETWORK_NAME" || true
+
+      - name: Prepare dev environment
+        run: |
+          mkdir -p data/guest
+          cat > .env <<ENVEOF
+          ENV=dev
+          FTP_PASS=ci-secret
+          FTP_PORT=21
+          FTP_PASV_MIN=30000
+          FTP_PASV_MAX=31000
+          PROJECT_ROOT=${{ github.workspace }}
+          ENVEOF
+
+      - name: make up
+        run: make up
+
+      - name: Wait for healthy container
+        run: |
+          for i in $(seq 1 90); do
+            cid=$(docker compose -f docker-compose.yaml -f docker-compose.dev.yaml ps -q ftp 2>/dev/null || true)
+            status="created"
+            [ -n "$cid" ] && status=$(docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo starting)
+            echo "[$i] healthcheck: $status"
+            [ "$status" = "healthy" ] && exit 0
+            [ "$status" = "unhealthy" ] && break
+            sleep 2
+          done
+          echo "::group::compose ps"
+          docker compose -f docker-compose.yaml -f docker-compose.dev.yaml ps
+          echo "::endgroup::"
+          echo "::group::compose logs"
+          docker compose -f docker-compose.yaml -f docker-compose.dev.yaml logs
+          echo "::endgroup::"
+          exit 1
+
+      - name: Smoke test FTP login
+        env:
+          FTP_PASS: ci-secret
+        run: |
+          python - <<'PYEOF'
+          import os
+          import time
+          from ftplib import FTP
+
+          for _ in range(60):
+              try:
+                  conn = FTP()
+                  conn.connect("localhost", 21, timeout=5)
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("could not reach FTP on localhost:21")
+
+          conn.login("infodengue", os.environ["FTP_PASS"])
+          print("user login OK, banner:", conn.getwelcome())
+          conn.quit()
+
+          anon = FTP()
+          anon.connect("localhost", 21, timeout=5)
+          anon.login()
+          print("anonymous login OK")
+          anon.quit()
+          PYEOF
+
+      - name: make down
+        if: always()
+        run: make down

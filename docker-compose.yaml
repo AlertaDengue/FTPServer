@@ -1,0 +1,31 @@
+services:
+  ftp:
+    hostname: ftpserver
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - UID=${HOST_UID:-1000}
+        - GID=${HOST_GID:-1000}
+    environment:
+      - FTP_PASS=${FTP_PASS:-changeme}
+    user: ftpuser:ftpgroup
+    volumes:
+      - /opt/services/FTPServer/data:/home/ftpuser/
+    ports:
+      - "${FTP_PORT:-21}:21"
+      - "${FTP_PASV_MIN:-30000}-${FTP_PASV_MAX:-31000}:30000-31000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 21), timeout=5).close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - infodengue
+
+networks:
+  infodengue:
+    name: ${INFODENGUE_NETWORK_NAME:-infodengue-prod_infodengue}
+    external: true
