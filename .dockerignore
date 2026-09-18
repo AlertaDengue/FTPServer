@@ -11,5 +11,9 @@ node_modules/
 **/.gitkeep
 Dockerfile
 compose*.yaml
+Makefile
 *.log
-
+data/
+conda/
+ftpserver/
+.github/

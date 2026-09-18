@@ -1,0 +1,13 @@
+services:
+  ftp:
+    env_file:
+      - .env
+    volumes:
+      - ${PROJECT_ROOT}/data:/home/ftpuser/
+    networks:
+      - infodengue
+
+networks:
+  infodengue:
+    name: ${INFODENGUE_NETWORK_NAME:-infodengue-prod_infodengue}
+    external: true
